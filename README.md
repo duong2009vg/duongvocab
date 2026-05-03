@@ -2,7 +2,7 @@
 
 Nền tảng học tiếng Anh thông minh với flashcard, bài kiểm tra và luyện tập từ vựng tương tác.
 
-🌐 **Live site:** [https://duongvocab.github.io](https://duongvocab.github.io)
+🌐 **Live site:** https://duongvocab.vercel.app/)
 
 ---
 
