@@ -3404,7 +3404,7 @@
     // ════════════════════════════════════════════════
     // GEMINI API — qua Cloudflare Worker (key ẩn hoàn toàn)
     // ════════════════════════════════════════════════
-    const WORKER_URL = 'https://duongvocab-ai.mitthoi60.workers.dev';
+    const WORKER_URL = 'https://duongvocab-proxy.vercel.app/api/chat';
 
     async function fetchGroqAPI(messages, options = {}, retries = 3) {
       const delays = [1000, 3000, 6000];
