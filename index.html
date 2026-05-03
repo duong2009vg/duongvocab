@@ -3561,8 +3561,8 @@
 
         // Desktop header button
         content.innerHTML = avatar
-          ? \`<img src="\${avatar}" alt="avatar"> \${name.split(' ').pop()}\`
-          : \`<span class="auth-avatar-placeholder">\${initial}</span> \${name.split(' ').pop()}\`;
+          ? '<img src="' + avatar + '" alt="avatar" style="width:22px;height:22px;border-radius:50%;object-fit:cover;"> ' + name.split(' ').pop()
+          : '<span class="auth-avatar-placeholder">' + initial + '</span> ' + name.split(' ').pop();
         btn.classList.add('signed-in');
 
         // Desktop dropdown
