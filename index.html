@@ -4005,7 +4005,7 @@
       tbody.innerHTML = pageItems.map((it, i) => {
         const globalIdx = pageStart + i;
         const lvl = getSrs(it.en).level;
-        const enSafe = it.en.replace(/'/g, "\'");
+        const enSafe = it.en.replace(/'/g, '&apos;');
         return '<tr>' +
           '<td><input type="checkbox" class="vocab-cb" data-index="' + globalIdx + '" ' + (selectedVocabWords.has(it.en) ? 'checked' : '') + ' onchange="toggleVocabCb(this)"></td>' +
           '<td><code style="color:var(--muted)">' + (globalIdx + 1) + '</code></td>' +
@@ -4013,7 +4013,7 @@
           '<td><div class="vocab-vi">' + it.vi + '</div></td>' +
           '<td><span class="vocab-type type-' + it.type.toLowerCase() + '">' + getVocabTypeLabel(it.type) + '</span></td>' +
           '<td>' + getSrsBadgeHtml(lvl) + '</td>' +
-          '<td><button class="speak-btn" onclick="speakText('' + enSafe + '')">🔊</button></td>' +
+          '<td><button class="speak-btn" onclick="speakText(this.dataset.en)" data-en="' + enSafe + '">🔊</button></td>' +
           '</tr>';
       }).join('');
 
