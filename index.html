@@ -3607,9 +3607,14 @@
       if (error) { console.error('loadSRS error:', error); return; }
       srsData = {};
       (data || []).forEach(row => {
-        srsData[row.vocab_key] = {
-          reps: row.reps, interval: row.interval, ease: row.ease,
-          nextReview: new Date(row.next_review).getTime(), level: row.level
+        const key = row.vocab_key;
+        if (!key) return;
+        srsData[key] = {
+          reps: row.reps || 0,
+          interval: row.interval || 0,
+          ease: row.ease || 2.5,
+          nextReview: row.next_review ? new Date(row.next_review).getTime() : 0,
+          level: row.level || 0
         };
       });
       updateTopicProgress(); updateGlobalProgress(); updateForecastDashboard(); updateSrsChart();
@@ -3618,14 +3623,14 @@
     async function saveSrsToSupabase(wordEn, stats) {
       if (!currentUser) return;
       const { error } = await sb.from('user_srs').upsert({
-        user_id:    currentUser.id,
-        vocab_key:  wordEn,
-        reps:       stats.reps,
-        interval:   stats.interval,
-        ease:       stats.ease,
-        next_review: new Date(stats.nextReview).toISOString(),
-        level:      stats.level,
-        updated_at: new Date().toISOString()
+        user_id:     currentUser.id,
+        vocab_key:   wordEn,
+        reps:        stats.reps        || 0,
+        interval:    stats.interval    || 0,
+        ease:        stats.ease        || 2.5,
+        next_review: new Date(stats.nextReview || Date.now()).toISOString(),
+        level:       stats.level       || 0,
+        updated_at:  new Date().toISOString()
       }, { onConflict: 'user_id,vocab_key' });
       if (error) console.error('saveSRS error:', error);
     }
