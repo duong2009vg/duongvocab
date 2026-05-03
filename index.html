@@ -3406,8 +3406,15 @@
     // ════════════════════════════════════════════════
     const WORKER_URL = 'https://duongvocab-ai.mitthoi60.workers.dev';
 
-    async function fetchGeminiAPI(payload, retries = 3) {
+    async function fetchGroqAPI(messages, options = {}, retries = 3) {
       const delays = [1000, 3000, 6000];
+      const payload = {
+        messages,
+        temperature:     options.temperature  ?? 0.7,
+        max_tokens:      options.max_tokens   ?? 1024,
+        response_format: options.json_mode ? { type: 'json_object' } : undefined,
+      };
+
       for (let attempt = 0; attempt < retries; attempt++) {
         try {
           const res = await fetch(WORKER_URL, {
@@ -3437,9 +3444,9 @@
       }
     }
 
-    // Helper: lấy text từ response Gemini
-    function geminiText(data) {
-      return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    // Helper: lấy text từ response Groq (OpenAI format)
+    function groqText(data) {
+      return data?.choices?.[0]?.message?.content?.trim() || '';
     }
 
     // ════════════════════════════════════════════════
@@ -4623,8 +4630,11 @@
 For EACH item, determine: 1. Is it an "idiom", "collocation", "noun", "verb", "adj", or "adv"? 2. Vietnamese meaning? 3. Practical English example sentence.
 Respond STRICTLY with a valid JSON array of objects. Format: [{"en": "word", "vi": "meaning", "type": "noun", "ex": "example sentence"}]`;
       try {
-        const data = await fetchGeminiAPI({ contents: [{ parts: [{ text: `List of words:\n${wordsArray.join('\n')}` }] }], systemInstruction: { parts: [{ text: systemInstruction }] }, generationConfig: { responseMimeType: "application/json" } });
-        const jsonString = geminiText(data);
+        const data = await fetchGroqAPI([
+          { role: 'system', content: systemInstruction },
+          { role: 'user',   content: 'List of words:\n' + wordsArray.join('\n') }
+        ], { json_mode: true, max_tokens: 2048 });
+        const jsonString = groqText(data);
         if (!jsonString) throw new Error('AI không trả về dữ liệu, thử lại nhé!');
         let generatedItems = JSON.parse(jsonString.replace(/^```json\s*/,'').replace(/```\s*$/,''));
         tempGeneratedWords = generatedItems.filter(item => item.en && item.vi && item.type);
@@ -4658,8 +4668,11 @@ Respond STRICTLY with a valid JSON array of objects. Format: [{"en": "word", "vi
 Respond STRICTLY with a valid JSON object. Format:
 {"analysis":"HTML formatted text: <br><b>1. Nghĩa & Loại:</b>...<br><b>2. 3 câu ví dụ:</b>...<br><b>3. Phân tích:</b>...", "en":"exact term","vi":"short meaning","type":"noun","ex":"example sentence"}`;
       try {
-        const data = await fetchGeminiAPI({ contents: [{ parts: [{ text: `Analyze the term: ${term}` }] }], systemInstruction: { parts: [{ text: systemInstruction }] }, generationConfig: { temperature: 0.7, responseMimeType: "application/json" } });
-        const rawText = geminiText(data).replace(/^```json\s*/,'').replace(/```\s*$/,'');
+        const data = await fetchGroqAPI([
+          { role: 'system', content: systemInstruction },
+          { role: 'user',   content: 'Analyze the term: ' + term }
+        ], { json_mode: true, temperature: 0.7, max_tokens: 1024 });
+        const rawText = groqText(data).replace(/^```json\s*/,'').replace(/```\s*$/,'');
         const parsedData = JSON.parse(rawText);
         result.innerHTML = parsedData.analysis;
         currentAnalyzedWord = { en: parsedData.en, vi: parsedData.vi, type: parsedData.type, ex: parsedData.ex };
