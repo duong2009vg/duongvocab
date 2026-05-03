@@ -3602,7 +3602,7 @@
       if (!currentUser) return;
       const { data, error } = await sb
         .from('user_srs')
-        .select('vocab_key, reps, interval, ease, next_review, level')
+        .select('vocab_key, reps, interval, ease_factor, next_review, level')
         .eq('user_id', currentUser.id);
       if (error) { console.error('loadSRS error:', error); return; }
       srsData = {};
@@ -3610,11 +3610,11 @@
         const key = row.vocab_key;
         if (!key) return;
         srsData[key] = {
-          reps: row.reps || 0,
-          interval: row.interval || 0,
-          ease: row.ease || 2.5,
+          reps:       row.reps        || 0,
+          interval:   row.interval    || 0,
+          ease:       row.ease_factor || 2.5,
           nextReview: row.next_review ? new Date(row.next_review).getTime() : 0,
-          level: row.level || 0
+          level:      row.level       || 0
         };
       });
       updateTopicProgress(); updateGlobalProgress(); updateForecastDashboard(); updateSrsChart();
@@ -3627,7 +3627,7 @@
         vocab_key:   wordEn,
         reps:        stats.reps        || 0,
         interval:    stats.interval    || 0,
-        ease:        stats.ease        || 2.5,
+        ease_factor: stats.ease        || 2.5,
         next_review: new Date(stats.nextReview || Date.now()).toISOString(),
         level:       stats.level       || 0,
         updated_at:  new Date().toISOString()
