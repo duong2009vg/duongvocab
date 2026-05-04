@@ -3704,7 +3704,7 @@
       let newStats = calculateNextSM2(data, isCorrect ? 2 : 0);
       srsData[wordEn] = { reps: newStats.reps, interval: newStats.interval, ease: newStats.ease, nextReview: newStats.nextReview, level: newStats.level };
       saveSrsToSupabase(wordEn, srsData[wordEn]); // ← lưu Supabase
-      updateTopicProgress(); updateGlobalProgress();
+      updateTopicProgress(); updateGlobalProgress(); updateSrsChart(); updateForecastDashboard();
     }
 
     function applyFcSrs(wordEn, grade) {
@@ -3712,7 +3712,7 @@
       let newStats = calculateNextSM2(data, grade);
       srsData[wordEn] = { reps: newStats.reps, interval: newStats.interval, ease: newStats.ease, nextReview: newStats.nextReview, level: newStats.level };
       saveSrsToSupabase(wordEn, srsData[wordEn]); // ← lưu Supabase
-      updateTopicProgress(); updateGlobalProgress();
+      updateTopicProgress(); updateGlobalProgress(); updateSrsChart(); updateForecastDashboard();
     }
 
     function buildStudyQueue(items) {
