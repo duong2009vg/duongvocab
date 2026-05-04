@@ -2916,6 +2916,9 @@
         <div style="text-align: center; margin-top: 24px; font-size: 1.1rem; font-weight: 600; color: var(--ink);">
           Chuẩn bị ôn tập: <span style="color: #F05D5E;" id="srsDueCountStr">0</span> từ
         </div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.95rem; color: var(--ink); opacity: 0.75; min-height: 22px;">
+          <span id="srsCountdownStr"></span>
+        </div>
       </div>
 
       <!-- NEW: Phần chọn thư mục phân loại nằm song song với nút Tạo chủ đề -->
@@ -3704,7 +3707,7 @@
       let newStats = calculateNextSM2(data, isCorrect ? 2 : 0);
       srsData[wordEn] = { reps: newStats.reps, interval: newStats.interval, ease: newStats.ease, nextReview: newStats.nextReview, level: newStats.level };
       saveSrsToSupabase(wordEn, srsData[wordEn]); // ← lưu Supabase
-      updateTopicProgress(); updateGlobalProgress(); updateSrsChart(); updateForecastDashboard();
+      updateTopicProgress(); updateGlobalProgress();
     }
 
     function applyFcSrs(wordEn, grade) {
@@ -3712,7 +3715,7 @@
       let newStats = calculateNextSM2(data, grade);
       srsData[wordEn] = { reps: newStats.reps, interval: newStats.interval, ease: newStats.ease, nextReview: newStats.nextReview, level: newStats.level };
       saveSrsToSupabase(wordEn, srsData[wordEn]); // ← lưu Supabase
-      updateTopicProgress(); updateGlobalProgress(); updateSrsChart(); updateForecastDashboard();
+      updateTopicProgress(); updateGlobalProgress();
     }
 
     function buildStudyQueue(items) {
@@ -3766,7 +3769,54 @@
         }).join('');
       }
       const dueEl = document.getElementById('srsDueCountStr'); if (dueEl) dueEl.textContent = dueCount;
+
+      // Bộ đếm ngược đến từ tiếp theo cần ôn
+      const countdownEl = document.getElementById('srsCountdownStr');
+      if (countdownEl) {
+        if (dueCount > 0) {
+          countdownEl.textContent = '🔥 Ôn tập ngay!';
+          countdownEl.style.color = '#F05D5E';
+          countdownEl.style.fontWeight = '700';
+        } else {
+          // Tìm từ có nextReview gần nhất trong tương lai
+          let nextTime = Infinity;
+          uniqueEn.forEach(en => {
+            const srs = getSrs(en);
+            if (srs.level > 0 && srs.level < 5 && srs.nextReview > now) {
+              if (srs.nextReview < nextTime) nextTime = srs.nextReview;
+            }
+          });
+          if (nextTime === Infinity) {
+            countdownEl.textContent = '';
+          } else {
+            // Lưu nextTime để interval dùng
+            window._srsNextReviewTime = nextTime;
+            countdownEl.style.color = '';
+            countdownEl.style.fontWeight = '';
+          }
+        }
+      }
     }
+
+    // Interval đếm ngược mỗi giây
+    function _updateSrsCountdown() {
+      const countdownEl = document.getElementById('srsCountdownStr');
+      if (!countdownEl || !window._srsNextReviewTime) return;
+      const dueEl = document.getElementById('srsDueCountStr');
+      if (dueEl && parseInt(dueEl.textContent) > 0) return;
+      const diff = window._srsNextReviewTime - Date.now();
+      if (diff <= 0) {
+        window._srsNextReviewTime = null;
+        updateSrsChart();
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      const pad = n => String(n).padStart(2, '0');
+      countdownEl.textContent = `⏱ Từ tiếp theo sau: ${h > 0 ? pad(h) + ':' : ''}${pad(m)}:${pad(s)}`;
+    }
+    setInterval(_updateSrsCountdown, 1000);
 
     // loadData: fetch từ Supabase, user tự tạo vẫn lưu localStorage
     async function loadData() {
