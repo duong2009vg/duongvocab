@@ -3917,6 +3917,8 @@
       if (id === 'dictionary') renderVocabTable();
       if (id === 'pdf-quiz') initPdfBooksGrid();
       updateGlobalProgress();
+      currentActiveTopic = null;
+      setHamburgerMode(false);
       // Sync mobile bottom tab bar
       document.querySelectorAll('.mob-tab-btn').forEach(b => b.classList.remove('active'));
       const mobTab = document.getElementById('mbt-' + id);
