@@ -2772,7 +2772,7 @@
   <div class="auth-toast" id="authToast"></div>
 
   <header class="global-header">
-    <button class="mob-hamburger" onclick="openMobDrawer()" aria-label="Menu">☰</button>
+    <button class="mob-hamburger" id="mobHamburger" onclick="mobHamburgerClick()" aria-label="Menu">☰</button>
     <div class="logo" onclick="showGlobalSection('home')">📚 <span>Duong</span>Vocab</div>
     <nav class="global-nav">
       <button data-target="home" class="active" onclick="showGlobalSection('home')">🏠 Trang chủ</button>
@@ -2809,25 +2809,7 @@
         </div>
       </div>
 
-      <!-- MOBILE STATS GRID -->
-      <div class="mob-stats-grid" style="display:none;">
-        <div class="mob-stat-card">
-          <div class="mob-stat-val green" id="mob-total-words">0</div>
-          <div class="mob-stat-lbl">Tổng từ</div>
-        </div>
-        <div class="mob-stat-card">
-          <div class="mob-stat-val orange" id="mob-learned-words">0</div>
-          <div class="mob-stat-lbl">Đã thuộc</div>
-        </div>
-        <div class="mob-stat-card">
-          <div class="mob-stat-val blue" id="mob-progress-pct">0%</div>
-          <div class="mob-stat-lbl">Tiến độ</div>
-        </div>
-        <div class="mob-stat-card">
-          <div class="mob-stat-val purple" id="mob-due-today">0</div>
-          <div class="mob-stat-lbl">Cần ôn hôm nay</div>
-        </div>
-      </div>
+      <!-- MOBILE STATS GRID (removed) -->
 
       <!-- DESKTOP HERO (ẩn trên mobile) -->
       <div class="desktop-hero"
@@ -2847,27 +2829,6 @@
           onclick="showGlobalSection('topics')">
           Khám phá ngay
         </button>
-        <div
-          style="margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; text-align: left;">
-          <div style="padding: 24px; background: var(--surface-fog); border-radius: var(--r-card);">
-            <div style="font-size: 2rem; margin-bottom: 12px;">🧠</div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">Thuật toán SM-2 chuẩn</h3>
-            <p style="font-size: 0.9rem; color: var(--ink-muted);">Hệ thống sẽ tính toán độ dễ (Ease Factor) và thời
-              gian lý tưởng cho từng từ riêng biệt.</p>
-          </div>
-          <div style="padding: 24px; background: var(--surface-fog); border-radius: var(--r-card);">
-            <div style="font-size: 2rem; margin-bottom: 12px;">🤖</div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">Trợ giảng AI</h3>
-            <p style="font-size: 0.9rem; color: var(--ink-muted);">Tự động phân tích từ vựng, phân loại và đặt câu ví dụ
-              hoàn toàn bằng sức mạnh của AI.</p>
-          </div>
-          <div style="padding: 24px; background: var(--surface-fog); border-radius: var(--r-card);">
-            <div style="font-size: 2rem; margin-bottom: 12px;">📈</div>
-            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">Đo lường tiến độ</h3>
-            <p style="font-size: 0.9rem; color: var(--ink-muted);">Hệ thống bài kiểm tra 10 điểm và theo dõi tiến trình
-              thăng hạng level từng từ một cách rõ ràng.</p>
-          </div>
-        </div>
       </div>
 
       <!-- LỊCH ÔN TẬP DỰ KIẾN (giữ nguyên cho cả desktop & mobile) -->
@@ -2915,6 +2876,9 @@
         </div>
         <div style="text-align: center; margin-top: 24px; font-size: 1.1rem; font-weight: 600; color: var(--ink);">
           Chuẩn bị ôn tập: <span style="color: #F05D5E;" id="srsDueCountStr">0</span> từ
+        </div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.95rem; color: var(--ink); opacity: 0.75; min-height: 22px;">
+          <span id="srsCountdownStr"></span>
         </div>
       </div>
 
@@ -3715,7 +3679,7 @@
       let newStats = calculateNextSM2(data, isCorrect ? 2 : 0);
       srsData[wordEn] = { reps: newStats.reps, interval: newStats.interval, ease: newStats.ease, nextReview: newStats.nextReview, level: newStats.level };
       saveSrsToSupabase(wordEn, srsData[wordEn]); // ← lưu Supabase
-      updateTopicProgress(); updateGlobalProgress();
+      updateTopicProgress(); updateGlobalProgress(); updateSrsChart(); updateForecastDashboard();
     }
 
     function applyFcSrs(wordEn, grade) {
@@ -3723,7 +3687,7 @@
       let newStats = calculateNextSM2(data, grade);
       srsData[wordEn] = { reps: newStats.reps, interval: newStats.interval, ease: newStats.ease, nextReview: newStats.nextReview, level: newStats.level };
       saveSrsToSupabase(wordEn, srsData[wordEn]); // ← lưu Supabase
-      updateTopicProgress(); updateGlobalProgress();
+      updateTopicProgress(); updateGlobalProgress(); updateSrsChart(); updateForecastDashboard();
     }
 
     function buildStudyQueue(items) {
@@ -3777,7 +3741,54 @@
         }).join('');
       }
       const dueEl = document.getElementById('srsDueCountStr'); if (dueEl) dueEl.textContent = dueCount;
+
+      // Bộ đếm ngược đến từ tiếp theo cần ôn
+      const countdownEl = document.getElementById('srsCountdownStr');
+      if (countdownEl) {
+        if (dueCount > 0) {
+          countdownEl.textContent = '🔥 Ôn tập ngay!';
+          countdownEl.style.color = '#F05D5E';
+          countdownEl.style.fontWeight = '700';
+          window._srsNextReviewTime = null;
+        } else {
+          let nextTime = Infinity;
+          uniqueEn.forEach(en => {
+            const srs = getSrs(en);
+            if (srs.level > 0 && srs.level < 5 && srs.nextReview > now) {
+              if (srs.nextReview < nextTime) nextTime = srs.nextReview;
+            }
+          });
+          if (nextTime === Infinity) {
+            countdownEl.textContent = '';
+            window._srsNextReviewTime = null;
+          } else {
+            window._srsNextReviewTime = nextTime;
+            countdownEl.style.color = '';
+            countdownEl.style.fontWeight = '';
+          }
+        }
+      }
     }
+
+    // Interval đếm ngược mỗi giây
+    function _updateSrsCountdown() {
+      const countdownEl = document.getElementById('srsCountdownStr');
+      if (!countdownEl || !window._srsNextReviewTime) return;
+      const dueEl = document.getElementById('srsDueCountStr');
+      if (dueEl && parseInt(dueEl.textContent) > 0) return;
+      const diff = window._srsNextReviewTime - Date.now();
+      if (diff <= 0) {
+        window._srsNextReviewTime = null;
+        updateSrsChart();
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      const pad = n => String(n).padStart(2, '0');
+      countdownEl.textContent = `⏱ Từ tiếp theo sau: ${h > 0 ? pad(h) + ':' : ''}${pad(m)}:${pad(s)}`;
+    }
+    setInterval(_updateSrsCountdown, 1000);
 
     // loadData: fetch từ Supabase, user tự tạo vẫn lưu localStorage
     async function loadData() {
@@ -4268,6 +4279,7 @@
       if (vocabBtn) vocabBtn.classList.add('active');
       renderTopicSidebarLessons();
       updateTopicProgress(); showTopicFeature('vocab');
+      setHamburgerMode(true);
     }
 
     function closeTopicWorkspace() {
@@ -4279,6 +4291,7 @@
       if (mto) mto.classList.remove('open');
       document.body.style.overflow = '';
       showGlobalSection('topics');
+      setHamburgerMode(false);
     }
 
     function updateTopicProgress() {
@@ -5101,6 +5114,28 @@ Respond STRICTLY with a valid JSON object. Format:
       document.getElementById('mobDrawer').classList.remove('open');
       document.getElementById('mobDrawerOverlay').classList.remove('open');
       document.body.style.overflow = '';
+    }
+
+    function mobHamburgerClick() {
+      if (currentActiveTopic) {
+        openMobTopicSidebar();
+      } else {
+        openMobDrawer();
+      }
+    }
+
+    function setHamburgerMode(inTopic) {
+      const btn = document.getElementById('mobHamburger');
+      if (!btn) return;
+      if (inTopic) {
+        btn.textContent = '☰';
+        btn.title = 'Mở menu học tập';
+        btn.style.color = 'var(--pin-red)';
+      } else {
+        btn.textContent = '☰';
+        btn.title = 'Menu';
+        btn.style.color = '';
+      }
     }
 
     function mobNavTo(section) {
