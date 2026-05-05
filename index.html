@@ -4652,9 +4652,14 @@
       if (!wordsRaw) { showCustomAlert('Thông báo', 'Vui lòng nhập ít nhất một từ vựng!'); wordsInput.focus(); return; }
       const wordsArray = wordsRaw.split('\n').map(w => w.trim()).filter(w => w.length > 0);
       btn.disabled = true; btn.innerHTML = '<span class="loading-dots">⏳ AI đang phân tích dữ liệu</span>'; resultArea.style.display = 'none';
-      const systemInstruction = `You are an English teacher. The user provides a list of English words.
-For EACH item, determine: 1. Is it an "idiom", "collocation", "noun", "verb", "adj", or "adv"? 2. Vietnamese meaning? 3. Practical English example sentence.
-Respond STRICTLY with a valid JSON array of objects. Format: [{"en": "word", "vi": "meaning", "type": "noun", "ex": "example sentence"}]`;
+      const systemInstruction = `You are an English teacher. The user provides a list of English words or phrases.
+For EACH item in the list, return a JSON object with EXACTLY these 4 fields:
+- "en": the original English word/phrase as given
+- "vi": Vietnamese translation/meaning (short, clear)
+- "type": MUST be one of exactly: "noun", "verb", "adj", "adv", "idiom", "collocation"
+- "ex": one practical English example sentence using the word
+Respond ONLY with a valid JSON array. No explanations, no extra fields, no markdown.
+Example output: [{"en": "ambitious", "vi": "tham v\u1ecdng", "type": "adj", "ex": "She is an ambitious young leader."}]`;
       try {
         const data = await fetchGroqAPI([
           { role: 'system', content: systemInstruction },
@@ -4663,10 +4668,22 @@ Respond STRICTLY with a valid JSON array of objects. Format: [{"en": "word", "vi
         const jsonString = groqText(data);
         if (!jsonString) throw new Error('AI không trả về dữ liệu, thử lại nhé!');
         let parsed = JSON.parse(jsonString.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim());
-        // AI sometimes returns {items:[...]} or {words:[...]} instead of a bare array
-        let generatedItems = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : Array.isArray(parsed.words) ? parsed.words : Object.values(parsed).find(v => Array.isArray(v)) || []);
+        // Handle all formats AI may return: bare array or wrapped object
+        let generatedItems = Array.isArray(parsed) ? parsed
+          : Array.isArray(parsed.items)      ? parsed.items
+          : Array.isArray(parsed.words)      ? parsed.words
+          : Array.isArray(parsed.vocabulary) ? parsed.vocabulary
+          : Array.isArray(parsed.data)       ? parsed.data
+          : (Object.values(parsed).find(v => Array.isArray(v)) || []);
+        // Normalize field names in case AI uses different keys
+        generatedItems = generatedItems.map(item => ({
+          en:   item.en   || item.english || item.word  || item.term || '',
+          vi:   item.vi   || item.vietnamese || item.meaning || item.definition || '',
+          type: item.type || item.part_of_speech || item.pos || item.category || '',
+          ex:   item.ex   || item.example || item.sentence || item.example_sentence || ''
+        }));
         tempGeneratedWords = generatedItems.filter(item => item.en && item.vi && item.type);
-        if (tempGeneratedWords.length === 0) throw new Error("No valid words parsed.");
+        if (tempGeneratedWords.length === 0) throw new Error('AI trả về dữ liệu không đúng định dạng, vui lòng thử lại!');
         tbody.innerHTML = tempGeneratedWords.map((it, i) => `<tr><td><code style="color:var(--muted)">${i + 1}</code></td><td><div class="vocab-en">${it.en}</div></td><td><div class="vocab-vi" style="font-weight:600">${it.vi}</div><div style="font-size:0.8rem;font-style:italic;color:var(--ink);margin-top:4px">"${it.ex}"</div></td><td><span class="vocab-type type-${it.type.toLowerCase()}">${getVocabTypeLabel(it.type)}</span></td></tr>`).join('');
         resultArea.style.display = 'block';
       } catch (err) { showCustomAlert('Lỗi hệ thống', 'Đã xảy ra lỗi khi tạo dữ liệu. Lỗi: ' + err.message); }
