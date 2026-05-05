@@ -4662,7 +4662,9 @@ Respond STRICTLY with a valid JSON array of objects. Format: [{"en": "word", "vi
         ], { json_mode: true, max_tokens: 2048 });
         const jsonString = groqText(data);
         if (!jsonString) throw new Error('AI không trả về dữ liệu, thử lại nhé!');
-        let generatedItems = JSON.parse(jsonString.replace(/^```json\s*/,'').replace(/```\s*$/,''));
+        let parsed = JSON.parse(jsonString.replace(/^```json\s*/,'').replace(/```\s*$/,'').trim());
+        // AI sometimes returns {items:[...]} or {words:[...]} instead of a bare array
+        let generatedItems = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : Array.isArray(parsed.words) ? parsed.words : Object.values(parsed).find(v => Array.isArray(v)) || []);
         tempGeneratedWords = generatedItems.filter(item => item.en && item.vi && item.type);
         if (tempGeneratedWords.length === 0) throw new Error("No valid words parsed.");
         tbody.innerHTML = tempGeneratedWords.map((it, i) => `<tr><td><code style="color:var(--muted)">${i + 1}</code></td><td><div class="vocab-en">${it.en}</div></td><td><div class="vocab-vi" style="font-weight:600">${it.vi}</div><div style="font-size:0.8rem;font-style:italic;color:var(--ink);margin-top:4px">"${it.ex}"</div></td><td><span class="vocab-type type-${it.type.toLowerCase()}">${getVocabTypeLabel(it.type)}</span></td></tr>`).join('');
@@ -4690,9 +4692,17 @@ Respond STRICTLY with a valid JSON array of objects. Format: [{"en": "word", "vi
       const result = document.getElementById('aiResult');
       result.className = 'ai-result show'; result.innerHTML = '<span class="loading-dots">Đang xử lý</span>';
       document.getElementById('aiAddVocabSection').style.display = 'none';
-      const systemInstruction = `You are an English teacher. Term: "${term}"
-Respond STRICTLY with a valid JSON object. Format:
-{"analysis":"HTML formatted text: <br><b>1. Nghĩa & Loại:</b>...<br><b>2. 3 câu ví dụ:</b>...<br><b>3. Phân tích:</b>...", "en":"exact term","vi":"short meaning","type":"noun","ex":"example sentence"}`;
+      const systemInstruction = `You are an English teacher analyzing the English term: "${term}".
+IMPORTANT: First, check if the input term has any spelling errors.
+Respond STRICTLY with a valid JSON object with these fields:
+- "spellingError": boolean - true if the input "${term}" contains a spelling mistake
+- "correctedTerm": string - the correctly spelled term (same as input if no error)
+- "analysis": HTML string with format: <br><b>1. Nghĩa & Loại:</b>...<br><b>2. 3 câu ví dụ:</b>...<br><b>3. Phân tích:</b>...
+- "en": the correctly spelled term
+- "vi": short Vietnamese meaning
+- "type": one of noun/verb/adj/adv/idiom/collocation
+- "ex": one example sentence
+If there is a spelling error, add a note at the top of "analysis": <div style="background:#fff3cd;border-left:4px solid #ffc107;padding:8px 12px;margin-bottom:10px;border-radius:4px;font-size:0.9rem">\u26a0\ufe0f <b>Lỗi chính tả:</b> Bạn đã nhập <b>"${term}"</b>. Từ đúng là: <b style="color:#e65100">[corrected]</b></div> then the full analysis of the corrected term.`;
       try {
         const data = await fetchGroqAPI([
           { role: 'system', content: systemInstruction },
@@ -4700,12 +4710,18 @@ Respond STRICTLY with a valid JSON object. Format:
         ], { json_mode: true, temperature: 0.7, max_tokens: 1024 });
         const rawText = groqText(data).replace(/^```json\s*/,'').replace(/```\s*$/,'');
         const parsedData = JSON.parse(rawText);
-        result.innerHTML = parsedData.analysis;
+        // Replace [corrected] placeholder with actual corrected term
+        let analysisHtml = parsedData.analysis || '';
+        if (parsedData.spellingError && parsedData.correctedTerm) {
+          analysisHtml = analysisHtml.replace('[corrected]', parsedData.correctedTerm);
+          document.getElementById('aiTermDisplay').innerHTML = `AI đã tạo bài học chi tiết cho: <span class="highlight">"${parsedData.correctedTerm}"</span>`;
+        }
+        result.innerHTML = analysisHtml;
         currentAnalyzedWord = { en: parsedData.en, vi: parsedData.vi, type: parsedData.type, ex: parsedData.ex };
         document.getElementById('aiTargetFolder').value = 'all';
         filterAiTopicsByFolder();
         document.getElementById('aiAddVocabSection').style.display = 'block';
-        speak(term);
+        speak(parsedData.en || term);
       } catch (e) { result.innerHTML = `<strong style="color:var(--pin-red)">Lỗi kết nối AI.</strong> (${e.message})`; }
     }
 
